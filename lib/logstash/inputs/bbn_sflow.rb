@@ -139,6 +139,8 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
 
     	header = Header.read(data)
 
+	@@sflow
+
       	if header.version == 5
 
         	agent_address = IPAddr.new(header.agent_address, Socket::AF_INET).to_s
