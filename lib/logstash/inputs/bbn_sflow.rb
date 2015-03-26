@@ -103,8 +103,9 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
     	while true
       		payload, client = @udp.recvfrom(9000)
       		sflow = parse_data(client[3], payload)
-      		json_sflow << sflow_to_json(sflow)
-      		queue << json_sflow
+      		event = LogStash::Event.new(sflow)
+        	decorate(event)
+       		queue << event
     	end
   	
   	ensure
@@ -136,17 +137,13 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
   
   	def parse_data(host, data)
 	
-	sflow = {}
-	event = LogStash::Event.new(sflow)
-        decorate(event)
-       	queue << event
-        
     	header = Header.read(data)
 
       	if header.version == 5
 
         	agent_address = IPAddr.new(header.agent_address, Socket::AF_INET).to_s
-
+		@sflow = {"agent_address" => agent_address}
+		
         	header.flow_samples.each do |sample|
             
             	if sample.sflow_sample_type == 3 or sample.sflow_sample_type ==  1
@@ -158,7 +155,7 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
               			"i_iface_value" => sampledata.i_iface_value.to_i,
               			"o_iface_value" => sampledata.o_iface_value.to_i }
               			
-              		sflow.merge!(sflow_sample)
+              		@sflow.merge!(sflow_sample)
 
               		sampledata.records.each do |record|
                 	
@@ -169,7 +166,7 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
                   			sflow_switch = { "vlan_src" => extswitch.src_vlan.to_i,
                   			"vlan_dst" => extswitch.dst_vlan.to_i }
                   			
-                  			sflow.merge!(sflow_switch)
+                  			@sflow.merge!(sflow_switch)
                 		
                 		elsif record.format == 1
                   			
@@ -195,21 +192,21 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
                   			sflow_ip = { "ipv4_src" => ipv4.sndr_addr,
                   				"ipv4_dst" => ipv4.dest_addr }
                   			
-                  			sflow.merge!(sflow_ip)
+                  			@sflow.merge!(sflow_ip)
                   
                   			if ipv4.protocol == 6
                     		
                     			sflow_frame = { "frame_length" => rawpacket.frame_length.to_i,
                     				"frame_length_multiplied" => rawpacket.frame_length.to_i * sflow_sample["sampling_rate"].to_i }
                     			
-                    			sflow.merge!(sflow_frame)
+                    			@sflow.merge!(sflow_frame)
                     			
                     			header = TCPHeader.new(ipv4.data)
                     			
                     			sflow_header = { "tcp_src_port" => header.sndr_port.to_i,
                     				"tcp_dst_port" => header.dest_port.to_i }
                     			
-                    			sflow.merge!(sflow_header)
+                    			@sflow.merge!(sflow_header)
                   			
                   			elsif ipv4.protocol == 17
                     			
@@ -218,7 +215,7 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
                     			sflow_header = { "udp_src_port" => header.sndr_port.to_i,
                     				"udp_dst_port" => header.dist_port.to_i }
                     			
-                    			sflow.merge!(sflow_header)
+                    			@sflow.merge!(sflow_header)
                   			
                   			end
 
@@ -243,13 +240,13 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
                   				"input_packets_error" => generic_int_counter.input_packets_error.to_i,
                   				"output_packets_error" => generic_int_counter.output_packets_error.to_i }
                   		
-                  			sflow.merge!(sflow_counter)
+                  			@sflow.merge!(sflow_counter)
                 		
                 		elsif record.format == 2
                   		
                   			eth_int_counter = Sflow5ethcounter.read(record.record_data)
                   		
-                  			sflow
+                  			@sflow
                 		
                 		end #if
                 		
@@ -261,7 +258,7 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
 
     	end #if
       
-    	return sflow
+    	return @sflow
     	
 	end
   
