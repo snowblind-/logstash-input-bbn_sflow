@@ -44,7 +44,7 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
 	public
   	def initialize(params)
     	super
-    	
+    	@@sflow
     	@shutdown_requested = Concurrent::AtomicBoolean.new(false)
     	BasicSocket.do_not_reverse_lookup = true
   	
@@ -136,10 +136,8 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
   	end # def
   
   	def parse_data(host, data)
-
+	
     	header = Header.read(data)
-
-	@@sflow
 
       	if header.version == 5
 
