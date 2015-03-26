@@ -44,6 +44,7 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
 	public
   	def initialize(params)
     	super
+    	
     	@shutdown_requested = Concurrent::AtomicBoolean.new(false)
     	BasicSocket.do_not_reverse_lookup = true
   	
@@ -102,7 +103,6 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
 
     	while true
       		payload, client = @udp.recvfrom(9000)
-      		sflow = parse_data(client[3], payload)
       		event = LogStash::Event.new(sflow)
         	decorate(event)
        		queue << event
@@ -134,16 +134,18 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
     	@udp = nil
     
   	end # def
-  
-  	def parse_data(host, data)
-	
+
+
+	def parse_data(host, data)
+
     	header = Header.read(data)
 
       	if header.version == 5
 
         	agent_address = IPAddr.new(header.agent_address, Socket::AF_INET).to_s
-		@sflow = {"agent_address" => agent_address}
-		
+        	
+        	@sflow = { "agent_address" => agent_address }
+
         	header.flow_samples.each do |sample|
             
             	if sample.sflow_sample_type == 3 or sample.sflow_sample_type ==  1
@@ -262,6 +264,7 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
     	
 	end
   
+  
 	def sflow_to_json(sflow)
 	
 		mappings = {"agent_address" => "sflow_agent_address",
@@ -279,6 +282,20 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
       	}
 
 		prefixed_sflow = Hash[sflow.map {|k, v| [mappings[k], v] }]
+
+      	#if sflow['i_iface_value'] and sflow['o_iface_value']
+        
+        #	i_iface_name = { "sflow_i_iface_name" => SNMPwalk.mapswitchportname(sflow['agent_address'],
+        #		sflow['i_iface_value']) }
+        	
+        #	o_iface_name = { "sflow_o_iface_name" => SNMPwalk.mapswitchportname(sflow['agent_address'],
+        #		sflow['o_iface_value']) }
+        	
+        #	prefixed_sflow.merge!(i_iface_name)
+        	
+        #	prefixed_sflow.merge!(o_iface_name)
+      	
+      	#end
 
       	return prefixed_sflow.to_json
 
