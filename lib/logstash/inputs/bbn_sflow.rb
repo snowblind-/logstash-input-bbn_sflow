@@ -136,6 +136,11 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
   
   	def parse_data(host, data)
 	
+	sflow = {}
+	event = LogStash::Event.new(sflow)
+        decorate(event)
+       	queue << event
+        
     	header = Header.read(data)
 
       	if header.version == 5
