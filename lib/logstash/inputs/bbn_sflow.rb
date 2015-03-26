@@ -103,6 +103,7 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
 
     	while true
       		payload, client = @udp.recvfrom(9000)
+      		sflow = Parser.parse_data(client[3], payload)
       		event = LogStash::Event.new(sflow)
         	decorate(event)
        		queue << event
