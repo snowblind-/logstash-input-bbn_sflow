@@ -24,7 +24,6 @@ require "concurrent_ruby"
 class LogStash::Inputs::Sflow < LogStash::Inputs::Base
 	config_name "bbn_sflow"
 
-	milestone 1
 	default :codec, "plain"
   
   	######################################################################################
