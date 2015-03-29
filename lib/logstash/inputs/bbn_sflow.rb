@@ -1,3 +1,14 @@
+##########################################################################################
+# Copyright (C) Buffin Bay Networks, Inc - All Rights Reserved
+# Unauthorized copying of this file, via any medium is strictly prohibited
+# Proprietary and confidential
+# Written by Devops <devops-github@baffinbaynetworks.com>, March 2015
+##########################################################################################
+# FILE DESCRIPTOR:
+# This plugin is written by Baffin Bay Networks and are being used for
+# receiving and parsing sflow data.
+##########################################################################################
+
 # Logstash specific dependencies
 require "logstash/inputs/base"
 require "logstash/namespace"
@@ -9,16 +20,6 @@ require "ipaddr"
 require "json"
 require "date"
 require "concurrent_ruby"
-
-
-##########################################################################################
-# This plugin is written by Baffin Bay Networks and are being used for
-# receiving and parsing sflow data.
-#
-# Author: Joakim Sundberg
-# Email: joakim.sundberg@baffinbaynetworks.com
-# Copyright Baffin Bay Networks
-##########################################################################################
 
 class LogStash::Inputs::Sflow < LogStash::Inputs::Base
 	config_name "bbn_sflow"
@@ -139,124 +140,122 @@ class LogStash::Inputs::Sflow < LogStash::Inputs::Base
 
 	def parse_data(host, data)
 	
-	header = Header.read(data)
+		header = Header.read(data)
 	
-	if header.version == 5
-		agent_address = IPAddr.new(header.agent_address, Socket::AF_INET).to_s
-		@sflow = { "agent_address" => agent_address }
+		if header.version == 5
+	
+			if header.address_type == 1
 		
-		header.flow_samples.each do |sample|
-			if sample.sflow_sample_type == 3 or sample.sflow_sample_type == 1
-				
-				sampledata = Sflow5sampleheader3.read(sample.sample_data) if sample.sflow_sample_type == 3
-				sampledata = Sflow5sampleheader1.read(sample.sample_data) if sample.sflow_sample_type == 1
-				
-				sflow_sample = { "sampling_rate" => sampledata.sampling_rate,
-					"i_iface_value" => sampledata.i_iface_value.to_i,
-					"o_iface_value" => sampledata.o_iface_value.to_i }
-				
-				@sflow.merge!(sflow_sample)
+				agent_address = IPAddr.new(header.agent_address, Socket::AF_INET).to_s
+				@sflow = { "agent_address" => agent_address }
+		
+			elsif header.address_type == 2
+		
+				# agent_address is IPv6 nothing to do
+				return @sflow
 
-				sampledata.records.each do |record|
+			end
+		
+			header.flow_samples.each do |sample|
+			
+				if sample.sflow_sample_type == 3 or sample.sflow_sample_type == 1
+				
+					sampledata = Sflow5sampleheader3.read(sample.sample_data) if sample.sflow_sample_type == 3
+					sampledata = Sflow5sampleheader1.read(sample.sample_data) if sample.sflow_sample_type == 1
+				
+					sflow_sample = { "sampling_rate" => sampledata.sampling_rate,
+						"i_iface_value" => sampledata.i_iface_value.to_i,
+						"o_iface_value" => sampledata.o_iface_value.to_i }
+				
+					@sflow.merge!(sflow_sample)
+
+					sampledata.records.each do |record|
 					
-					if record.format == 1001 # Extended Switch data
-						extswitch = Sflow5extswitch.read(record.record_data)
+						if record.format == 1001 # Extended Switch data
+							extswitch = Sflow5extswitch.read(record.record_data)
 						
-						sflow_switch = { "vlan_src" => extswitch.src_vlan.to_i,
-						"vlan_dst" => extswitch.dst_vlan.to_i }
+							sflow_switch = { "vlan_src" => extswitch.src_vlan.to_i,
+								"vlan_dst" => extswitch.dst_vlan.to_i }
 
-						@sflow.merge!(sflow_switch)
+							@sflow.merge!(sflow_switch)
 
-					elsif record.format == 1 # Raw packet format
+						elsif record.format == 1 # Raw packet format
 
-						rawpacket = Sflow5rawpacket.read(record.record_data)
+							rawpacket = Sflow5rawpacket.read(record.record_data)
 						
-						if rawpacket.header_protocol == 11 # Header protocol equal ethernet
+							if rawpacket.header_protocol == 11 # Header protocol equal ethernet
 							
-							eth_header = Sflow5rawpacketheaderEthernet.read(rawpacket.rawpacket_data.to_ary.join)
-							ip_packet = eth_header.ethernetdata.to_ary.join
+								eth_header = Sflow5rawpacketheaderEthernet.read(rawpacket.rawpacket_data.to_ary.join)
+								ip_packet = eth_header.ethernetdata.to_ary.join
 
-							if eth_header.eth_type == 33024 # Ethernet type equal VLAN TAG
+								if eth_header.eth_type == 33024 # Ethernet type equal VLAN TAG
 	
-								vlan_header = Sflow5rawpacketdataVLAN.read(eth_header.ethernetdata.to_ary.join)
-								ip_packet = vlan_header.vlandata.to_ary.join
-							end
+									vlan_header = Sflow5rawpacketdataVLAN.read(eth_header.ethernetdata.to_ary.join)
+									ip_packet = vlan_header.vlandata.to_ary.join
+								end
 	
 							
-							ipv4 = IPv4Header.new(ip_packet)
+								ipv4 = IPv4Header.new(ip_packet)
 
-							sflow_ip = { "ipv4_src" => ipv4.sndr_addr,
-								"ipv4_dst" => ipv4.dest_addr }
+								sflow_ip = { "ipv4_src" => ipv4.sndr_addr,
+									"ipv4_dst" => ipv4.dest_addr }
 
-							@sflow.merge!(sflow_ip)
+								@sflow.merge!(sflow_ip)
 							
-							if ipv4.protocol == 6 #Protocol equal TCP
-								sflow_frame = { "frame_length" => rawpacket.frame_length.to_i,
-									"frame_length_multiplied" => rawpacket.frame_length.to_i * sflow_sample["sampling_rate"].to_i }
+								if ipv4.protocol == 6 #Protocol equal TCP
+									sflow_frame = { "frame_length" => rawpacket.frame_length.to_i,
+										"frame_length_multiplied" => rawpacket.frame_length.to_i * sflow_sample["sampling_rate"].to_i }
 
-								@sflow.merge!(sflow_frame)
+									@sflow.merge!(sflow_frame)
 							
-								header = TCPHeader.new(ipv4.data)
+									header = TCPHeader.new(ipv4.data)
 							
-								sflow_header = { "tcp_src_port" => header.sndr_port.to_i,
-									"tcp_dst_port" => header.dest_port.to_i }
+									sflow_header = { "tcp_src_port" => header.sndr_port.to_i,
+										"tcp_dst_port" => header.dest_port.to_i }
 
-								@sflow.merge!(sflow_header)
+									@sflow.merge!(sflow_header)
 
-							elsif ipv4.protocol == 17 #Protocol equal UDP
+								elsif ipv4.protocol == 17 #Protocol equal UDP
 												
-								header = UDPHeader.new(ipv4.data)
-								sflow_header = { "udp_src_port" => header.sndr_port.to_i,
+									header = UDPHeader.new(ipv4.data)
+									sflow_header = { "udp_src_port" => header.sndr_port.to_i,
 									"udp_dst_port" => header.dist_port.to_i }
 
-								@sflow.merge!(sflow_header)
-							end
-	
-						
-						#elsif rawpacket.header_protocol == 13 # Header protocol equal IPv4
-						
-							
-
-	
-						
-						#elsif rawpacket.header_protocol == 12 # Header protocol equal IPv6
-						
+									@sflow.merge!(sflow_header)
+								end
+							end		
 						end
-						###
-						
 					end
-				end
 			
-			elsif sample.sflow_sample_type == 4 or sample.sflow_sample_type == 2
+				elsif sample.sflow_sample_type == 4 or sample.sflow_sample_type == 2
 
-				sampledata = Sflow5counterheader4.read(sample.sample_data) if sample.sflow_sample_type == 4
-				sampledata = Sflow5counterheader2.read(sample.sample_data) if sample.sflow_sample_type == 2
+					sampledata = Sflow5counterheader4.read(sample.sample_data) if sample.sflow_sample_type == 4
+					sampledata = Sflow5counterheader2.read(sample.sample_data) if sample.sflow_sample_type == 2
 
-				sampledata.records.each do |record|
+					sampledata.records.each do |record|
 					
-					if record.format == 1
-						generic_int_counter = Sflow5genericcounter.read(record.record_data)
-						sflow_counter = { "i_octets" => generic_int_counter.input_octets.to_i,
-							"o_octets" => generic_int_counter.output_octets.to_i,
-							"interface" => generic_int_counter.int_index.to_i,
-							"input_packets_error" => generic_int_counter.input_packets_error.to_i,
-							"output_packets_error" => generic_int_counter.output_packets_error.to_i }
+						if record.format == 1
+							generic_int_counter = Sflow5genericcounter.read(record.record_data)
+							sflow_counter = { "i_octets" => generic_int_counter.input_octets.to_i,
+								"o_octets" => generic_int_counter.output_octets.to_i,
+								"interface" => generic_int_counter.int_index.to_i,
+								"input_packets_error" => generic_int_counter.input_packets_error.to_i,
+								"output_packets_error" => generic_int_counter.output_packets_error.to_i }
 
-						@sflow.merge!(sflow_counter)
+							@sflow.merge!(sflow_counter)
 
-					elsif record.format == 2
-						eth_int_counter = Sflow5ethcounter.read(record.record_data)
-						@sflow
-					end #if
-				end # do
-			end # if
-		end # do
-	end #if
+						elsif record.format == 2
+							eth_int_counter = Sflow5ethcounter.read(record.record_data)
+							@sflow
+						end #if
+					end # do
+				end # if
+			end # do
+		end #if
 	
-	return @sflow
+		return @sflow
 
-end
-  
+	end
   
 	def sflow_to_json(sflow)
 	
@@ -265,33 +264,32 @@ end
 			"i_iface_value" => "sflow_i_iface_value",
 			"o_iface_value" => "sflow_o_iface_value",
 			"vlan_src" => "sflow_vlan_src",
-            "vlan_dst" => "sflow_vlan_dst",
-            "ipv4_src" => "sflow_ipv4_src",
-            "ipv4_dst" => "sflow_ipv4_dst",
-            "frame_length" => "sflow_frame_length",
-            "frame_length_multiplied" => "sflow_frame_length_multiplied",
-            "tcp_src_port" => "sflow_tcp_src_port",
-            "tcp_dst_port" => "sflow_tcp_dst_port"
-      	}
+            		"vlan_dst" => "sflow_vlan_dst",
+            		"ipv4_src" => "sflow_ipv4_src",
+            		"ipv4_dst" => "sflow_ipv4_dst",
+            		"frame_length" => "sflow_frame_length",
+            		"frame_length_multiplied" => "sflow_frame_length_multiplied",
+            		"tcp_src_port" => "sflow_tcp_src_port",
+            		"tcp_dst_port" => "sflow_tcp_dst_port"}
 
 		prefixed_sflow = Hash[sflow.map {|k, v| [mappings[k], v] }]
 
-      	#if sflow['i_iface_value'] and sflow['o_iface_value']
+		# TODO: Implement snmpwalk to get the interface name of the switch
+      		#if sflow['i_iface_value'] and sflow['o_iface_value']
         
-        #	i_iface_name = { "sflow_i_iface_name" => SNMPwalk.mapswitchportname(sflow['agent_address'],
-        #		sflow['i_iface_value']) }
+        	#	i_iface_name = { "sflow_i_iface_name" => SNMPwalk.mapswitchportname(sflow['agent_address'],
+        	#		sflow['i_iface_value']) }
         	
-        #	o_iface_name = { "sflow_o_iface_name" => SNMPwalk.mapswitchportname(sflow['agent_address'],
-        #		sflow['o_iface_value']) }
+		#	o_iface_name = { "sflow_o_iface_name" => SNMPwalk.mapswitchportname(sflow['agent_address'],
+        	#		sflow['o_iface_value']) }
         	
-        #	prefixed_sflow.merge!(i_iface_name)
+	 	#	prefixed_sflow.merge!(i_iface_name)
         	
-        #	prefixed_sflow.merge!(o_iface_name)
+        	#	prefixed_sflow.merge!(o_iface_name)
       	
-      	#end
+      		#end
 
-      	return prefixed_sflow.to_json
-
+      		return prefixed_sflow.to_json
 	end
 	
 end # class LogStash::Inputs::Sflow
