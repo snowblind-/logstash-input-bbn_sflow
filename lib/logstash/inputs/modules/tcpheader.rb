@@ -1,3 +1,14 @@
+##########################################################################################
+# Copyright (C) Buffin Bay Networks, Inc - All Rights Reserved
+# Unauthorized copying of this file, via any medium is strictly prohibited
+# Proprietary and confidential
+# Written by Devops <devops-github@baffinbaynetworks.com>, March 2015
+##########################################################################################
+# FILE DESCRIPTOR:
+# This plugin is written by Baffin Bay Networks and are being used for
+# receiving and parsing sflow data.
+##########################################################################################
+
 class TCPHeader
 
 	attr_reader :sndr_port,:dest_port,:seq_num,:ack_num,:header_length,
