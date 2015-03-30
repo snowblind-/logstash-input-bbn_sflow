@@ -128,7 +128,7 @@ The current version (RC2) of Logstash 1.5.0 has a problem with the plugin binary
 Edit Logstash Gem file and add the following line to the file right after the gemspec line.
 
 <i>
-  gem "logstash-input-bbn_sflow", :path => "/home/sundberg/logstash-input-bbn_sflow"
+  gem "logstash-input-bbn_sflow", :path => "/home/devops-github/logstash-input-bbn_sflow"
 </i>
 
 Save and exit the file and run the followoing command to have Logstash read in the new Gemfile.
