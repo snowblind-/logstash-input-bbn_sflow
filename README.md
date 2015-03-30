@@ -96,13 +96,13 @@ The lastes version of the plugin is easiest obtained by cloning the repository u
 This will install a directory with the sourcecode in your current directory
 
 <i>
-  devops-github@devsrv10:~$ ls -la
-  total 168180
-  drwxr-xr-x 9 devops-github devops-github    4096 Mar 30 02:13 .
-  drwxr-xr-x 3 root     root                  4096 Mar 22 05:46 ..
-  ...
-  drwxrwxr-x 5 devops-github devops-github    4096 Mar 30 02:14 logstash-input-bbn_sflow
-  ...
+  devops-github@devsrv10:~$ ls -la<br>
+  total 168180<br>
+  drwxr-xr-x 9 devops-github devops-github    4096 Mar 30 02:13 .<br>
+  drwxr-xr-x 3 root     root                  4096 Mar 22 05:46 ..<br>
+  ...<br>
+  drwxrwxr-x 5 devops-github devops-github    4096 Mar 30 02:14 logstash-input-bbn_sflow<br>
+  ...<br>
 </i>
 
 
