@@ -7,7 +7,7 @@ Easist way to test the plugin would be to install a Ubuntu server.
 ## Installing dependencies
 The following dependencies needs to be installed via apt-get
 
-  sudo apr-get install git openjdk-7-jdk
+  sudo apt-get install git openjdk-7-jdk
 
 ## Install latest version of JRuby
 All plugin development for logstash is done with JRuby. Install the latest version of JRuby (currently 1.7.19), can be found here: https://s3.amazonaws.com/jruby.org/downloads/1.7.19/jruby-bin-1.7.19.tar.gz 
