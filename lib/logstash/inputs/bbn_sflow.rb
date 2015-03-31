@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 # Logstash specific dependencies
 require "logstash/inputs/base"
 require "logstash/namespace"
