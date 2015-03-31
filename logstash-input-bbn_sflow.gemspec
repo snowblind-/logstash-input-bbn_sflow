@@ -12,12 +12,12 @@
 Gem::Specification.new do |s|
   s.name = 'logstash-input-bbn_sflow'
   s.version = '0.1.0'
-  s.licenses = ['Copyright (C) Buffin Bay Networks, Inc - All Rights Reserved']
+  s.licenses = ['Apache License (2.0)']
   s.summary = "Logstash plugin used to recive and parse sFlow v5 packets"
   s.description = " N/A "
   s.authors = ["Baffin Bay Networks"]
   s.email = 'devops-github@buffinbaynetworks.com'
-  s.homepage = "http://www.buffinbaynetworks.com/plugins/logstash"
+  s.homepage = "http://www.buffinbaynetworks.com"
   s.require_paths = ["lib"]
 
   # Files
